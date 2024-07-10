@@ -9,7 +9,6 @@ class Result(BaseModel):
     query: str
 
 @app.post("/fetch_results/")
-# ! this is only the first page -_-
 async def fetch_results(query: Result,page:int = 0):
     query_string = "+".join(query.query.split())
     start = page * 10
