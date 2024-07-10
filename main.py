@@ -1,19 +1,24 @@
-'''
-Plan: first scrape the stuff in a desirable manner, then use fastapi to connect it to kaizen tests section,
-firts fetch the results and onclick fetch the file
-'''
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel
 from bs4 import BeautifulSoup
 import requests
 
-def fetch_results():
-    url = "http://dspace.srmist.edu.in/dspace/simple-search?query=Human+Resource+Management"
+app = FastAPI()
 
-    content = requests.get(url=url)
-    soup = BeautifulSoup(content.text,"lxml")
-    results = soup.find_all("td",class_=["evenRowOddCol","oddRowOddCol"])
+class Result(BaseModel):
+    query: str
+
+@app.post("/fetch_results/")
+# ! this is only the first page -_-
+async def fetch_results(query: Result):
+    query_string = "+".join(query.query.split())
+    url = f"http://dspace.srmist.edu.in/dspace/simple-search?query={query_string}"
+    content = requests.get(url)
+    soup = BeautifulSoup(content.text, "lxml")
+    results = soup.find_all("td", class_=["evenRowOddCol", "oddRowOddCol"])
     data = []
     for result in results:
-        details = {"date":"","title":"","link":"","author":""}
+        details = {"date": "", "title": "", "link": "", "author": ""}
         details["title"] = result.a.contents[0]
         details["link"] = result.a["href"]
         prev_td = result.previous_sibling.previous_sibling
@@ -23,14 +28,17 @@ def fetch_results():
         if next_td is not None:
             details["author"] = next_td.text.strip()
         data.append(details)
-    print(data)
+    return {"results":data}
 
-def fetch_file():
-    selected_url = "http://dspace.srmist.edu.in/dspace/handle/123456789/1257"
+@app.post("/fetch_file/")
+async def fetch_file(request: Request):
+    data = await request.json()
+    selected_url = data.get("file_link")
+    if not selected_url:
+        raise HTTPException(status_code=400, detail="Missing 'file_link' parameter.")
+    
     content = requests.get(url=selected_url)
-    soup = BeautifulSoup(content.text,"lxml")
-    file = soup.find("td",class_="standard")
+    soup = BeautifulSoup(content.text, "lxml")
+    file = soup.find("td", class_="standard")
     file_link = file.a["href"]
-    print(file_link)
-
-fetch_file()
+    return {"file_link": file_link}
