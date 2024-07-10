@@ -10,9 +10,10 @@ class Result(BaseModel):
 
 @app.post("/fetch_results/")
 # ! this is only the first page -_-
-async def fetch_results(query: Result):
+async def fetch_results(query: Result,page:int = 0):
     query_string = "+".join(query.query.split())
-    url = f"http://dspace.srmist.edu.in/dspace/simple-search?query={query_string}"
+    start = page * 10
+    url = f"http://dspace.srmist.edu.in/dspace/simple-search?query={query_string}&start={start}"
     content = requests.get(url)
     soup = BeautifulSoup(content.text, "lxml")
     results = soup.find_all("td", class_=["evenRowOddCol", "oddRowOddCol"])
@@ -33,11 +34,11 @@ async def fetch_results(query: Result):
 @app.post("/fetch_file/")
 async def fetch_file(request: Request):
     data = await request.json()
-    selected_url = data.get("file_link")
+    selected_url = data.get("link")
     if not selected_url:
         raise HTTPException(status_code=400, detail="Missing 'file_link' parameter.")
     
-    content = requests.get(url=selected_url)
+    content = requests.get(url=f"http://dspace.srmist.edu.in{selected_url}")
     soup = BeautifulSoup(content.text, "lxml")
     file = soup.find("td", class_="standard")
     file_link = file.a["href"]
